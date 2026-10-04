@@ -16,6 +16,11 @@ Turn individual needs into smarter group purchases. Buy Together lets members de
 - Protected manager setup using a server-only setup secret and Supabase service-role key; a SQL promotion example is included as a fallback.
 - PostgreSQL foreign keys, indexes, quantity checks, row-level security policies, and non-exposed security-definer helpers.
 - Responsive Next.js App Router interface styled with Tailwind CSS 4 and custom design tokens.
+- No-account guest walkthrough at `/demo` with fictional group examples; guest edits live only in that browser's local storage and never touch Supabase.
+
+## Guest demo
+
+Open [`/demo`](https://buy-together-demo.onrender.com/demo) to try adding and editing a request without signing in. [`/demo/group`](https://buy-together-demo.onrender.com/demo/group) shows fictional sample group totals plus requests saved in that same browser. Reset the local demo list any time from the guest list page. This is a walkthrough, not shared live data: only the authenticated `/dashboard` and `/manager` use account-backed Supabase records.
 
 ## Technology
 

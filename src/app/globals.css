@@ -429,4 +429,55 @@ button, summary, select { cursor: pointer; }
   .setup-page { min-height: calc(100vh - 61px); }
   .setup-card { padding: 22px; }
 }
+
+/* Guest demo: browser-local only, separate from authenticated workspaces. */
+.demo-nav { gap: 28px; }
+.demo-nav-actions { display: flex; align-items: center; gap: 13px; margin-left: auto; }
+.guest-pill { padding: 8px 10px; border: 1px solid #dce8df; border-radius: 999px; color: #3c7358; background: #eff6ef; font-size: 9px; font-weight: 800; letter-spacing: .6px; white-space: nowrap; }
+.demo-content { padding-top: 28px; }
+.demo-banner { display: flex; align-items: center; gap: 9px; margin-bottom: 24px; padding: 11px 14px; border: 1px solid #dce9df; border-radius: 11px; color: #446451; background: #edf5ee; font-size: 11px; line-height: 1.5; }
+.demo-banner-dot { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: #4a9a69; }
+.demo-own-item { display: flex; min-height: 69px; align-items: center; gap: 12px; padding: 10px 13px; border: 1px solid #e7eae4; border-radius: 12px; background: #fff; }
+.demo-own-copy { display: grid; min-width: 0; flex: 1; gap: 4px; }
+.demo-own-copy strong { color: #28342e; font-size: 13px; text-transform: capitalize; }
+.demo-own-copy span { overflow: hidden; color: #859087; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.demo-quantity-control { display: flex; align-items: center; gap: 9px; color: #395246; }
+.demo-quantity-control button, .demo-delete { display: grid; width: 30px; height: 30px; place-items: center; border: 1px solid #e4e9e2; border-radius: 9px; color: #607168; background: #fff; }
+.demo-quantity-control button:hover { color: var(--green); background: #edf5ef; }
+.demo-quantity-control strong { min-width: 69px; text-align: center; font-size: 11px; }
+.demo-delete { color: #9a6458; }
+.demo-delete:hover { color: #a33e30; background: #fff0ed; }
+.demo-reset { display: inline-flex; align-items: center; gap: 6px; border: 0; color: #78857b; background: transparent; font-size: 10px; font-weight: 650; }
+.demo-reset:hover { color: #a33e30; }
+.demo-sample-list { display: grid; gap: 7px; }
+.demo-sample-row { display: grid; grid-template-columns: 33px minmax(130px, .65fr) minmax(0, 1fr); align-items: center; gap: 11px; padding: 10px 12px; border-bottom: 1px solid #edf0ea; }
+.demo-sample-row > div { display: grid; gap: 3px; }
+.demo-sample-row > div strong { font-size: 11px; }
+.demo-sample-row > div span, .demo-sample-row > small { color: #7e8981; font-size: 10px; line-height: 1.5; }
+.demo-bottom-links { display: flex; align-items: center; gap: 18px; margin: 24px 0 48px; }
+.demo-bottom-links > a:not(.button) { color: #63736a; font-size: 11px; font-weight: 650; }
+.demo-bottom-links > a:not(.button):hover { color: var(--green); }
+.guest-demo-link { margin: 17px 0 0 !important; color: #7d8880 !important; font-size: 10px !important; text-align: center; }
+.guest-demo-link a { color: var(--green); font-weight: 750; }
+@media (max-width: 680px) {
+  .demo-nav { gap: 9px; padding-inline: 12px; }
+  .demo-nav .brand-name { font-size: 14px; }
+  .demo-nav .brand-icon { width: 28px; height: 28px; }
+  .demo-nav .workspace-links { margin-left: auto; }
+  .demo-nav .workspace-link { padding-inline: 6px; font-size: 8px; }
+  .demo-nav .workspace-link svg { width: 12px; }
+  .demo-nav-actions { margin-left: 0; }
+  .demo-nav-actions .button { min-height: 30px; padding-inline: 8px; font-size: 9px; }
+  .guest-pill { display: none; }
+  .demo-content { padding-top: 18px; }
+  .demo-banner { align-items: flex-start; margin-bottom: 18px; padding: 9px; font-size: 9px; }
+  .demo-own-item { gap: 7px; padding-inline: 8px; }
+  .demo-own-copy span { max-width: 118px; }
+  .demo-quantity-control { gap: 4px; }
+  .demo-quantity-control button, .demo-delete { width: 27px; height: 27px; }
+  .demo-quantity-control strong { min-width: 54px; font-size: 9px; }
+  .demo-sample-row { grid-template-columns: 28px 1fr; gap: 7px; }
+  .demo-sample-row > small { grid-column: 2; }
+  .demo-bottom-links { align-items: flex-start; flex-direction: column; gap: 13px; }
+}
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; } }
