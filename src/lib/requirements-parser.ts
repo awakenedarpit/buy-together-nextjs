@@ -28,6 +28,7 @@ const ignoredVariantWords = new Set([
   "mujhe", "chahiye", "chaiye", "aur", "and", "or", "also", "of", "for",
   "to", "the", "a", "an", "ek", "one", "two", "three", "four", "five",
   "six", "seven", "eight", "nine", "ten", "piece", "pieces", "pack", "packs",
+  "i", "me", "my", "we", "our", "can", "could", "you", "please", "add",
 ]);
 
 const aliases: Array<{ alias: string; name: string }> = [
@@ -40,6 +41,7 @@ const aliases: Array<{ alias: string; name: string }> = [
   { alias: "erasers", name: "eraser" }, { alias: "eraser", name: "eraser" },
   { alias: "rulers", name: "ruler" }, { alias: "ruler", name: "ruler" },
   { alias: "bottles", name: "bottle" }, { alias: "bottle", name: "bottle" },
+  { alias: "water bottles", name: "water bottle" }, { alias: "water bottle", name: "water bottle" },
   { alias: "chargers", name: "charger" }, { alias: "charger", name: "charger" },
   { alias: "tissues", name: "tissue" }, { alias: "tissue", name: "tissue" },
   { alias: "sanitizers", name: "sanitizer" }, { alias: "sanitizer", name: "sanitizer" },
@@ -76,6 +78,68 @@ function quantityValue(token: string): number | undefined {
   return numberWords[token.toLowerCase()];
 }
 
+const requestFillers = new Set([
+  "i", "me", "my", "we", "our", "you", "please", "pls", "bhai", "need", "want", "wanted",
+  "get", "buy", "order", "add", "put", "find", "bring", "send", "give", "can", "could", "would",
+  "mujhe", "chahiye", "chaiye", "mere", "liye", "ke", "liya", "do", "kardo", "karna",
+  "a", "an", "the", "some", "any", "of", "for", "to", "with", "and", "or", "aur", "also", "plus",
+  "pack", "packs", "packet", "packets", "box", "boxes", "piece", "pieces", "pc", "pcs", "item", "items",
+  "kg", "kgs", "kilogram", "kilograms", "g", "gram", "grams", "l", "litre", "litres", "liter", "liters", "ml",
+  "hello", "hi", "nothing", "anything", "everything", "something", "stuff", "thing", "things", "advice", "help", "thanks", "thank", "for", "me", "u", "no", "not", "there", "is", "are",
+]);
+const productModifiers = new Set([
+  "red", "blue", "green", "black", "white", "yellow", "pink", "purple", "orange", "brown", "grey", "gray",
+  "small", "medium", "large", "big", "mini", "extra", "xl", "xxl", "new", "old", "fresh", "ripe",
+  "wireless", "wired", "waterproof", "organic", "gluten", "free", "cotton", "wooden", "metal", "stainless",
+]);
+const unitTokens = new Set(["pc", "pcs", "piece", "pieces", "item", "items", "box", "boxes", "pack", "packs", "packet", "packets", "kg", "kgs", "kilogram", "kilograms", "g", "gram", "grams", "l", "litre", "litres", "liter", "liters", "ml", "dozen", "dozens"]);
+
+function singularize(word: string): string {
+  if (word.length > 4 && word.endsWith("ies")) return `${word.slice(0, -3)}y`;
+  if (word.length > 3 && /(ches|shes|xes|zes|sses)$/.test(word)) return word.slice(0, -2);
+  if (word.length > 3 && word.endsWith("s") && !/(ss|us|is)$/.test(word)) return word.slice(0, -1);
+  return word;
+}
+
+function inferUnknownProducts(text: string, matches: Array<{ start: number; end: number }>): Requirement[] {
+  const clauses = text.split(/[,;\n]+|\b(?:and|or|aur|plus)\b/i);
+  const results: Requirement[] = [];
+  let searchFrom = 0;
+  for (const clause of clauses) {
+    const start = text.indexOf(clause, searchFrom);
+    if (start < 0) continue;
+    searchFrom = start + clause.length;
+    const end = start + clause.length;
+    if (matches.some((match) => match.start < end && match.end > start)) continue;
+
+    const tokens = clause.match(/[a-z0-9]+/g) ?? [];
+    let quantity = 1;
+    let foundQuantity = false;
+    let unit = "piece";
+    for (const token of tokens) {
+      const candidate = quantityValue(token);
+      if (!foundQuantity && candidate !== undefined) {
+        quantity = candidate;
+        foundQuantity = true;
+      }
+      if (unitTokens.has(token)) unit = unitFrom(token);
+    }
+    const productWords = tokens.filter((token) =>
+      quantityValue(token) === undefined &&
+      !requestFillers.has(token) &&
+      !productModifiers.has(token) &&
+      !unitTokens.has(token) &&
+      !/^\d+$/.test(token),
+    );
+    if (productWords.length === 0 || quantity < 1 || quantity > 1000) continue;
+
+    const modifiers = tokens.filter((token) => productModifiers.has(token));
+    const name = productWords.slice(-3).map(singularize).join(" ").slice(0, 60);
+    results.push({ name, quantity, unit, variant: modifiers.length ? modifiers.join(" ").slice(0, 60) : null });
+  }
+  return results;
+}
+
 export function normalizeExtracted(value: unknown): Requirement[] {
   const list = Array.isArray(value)
     ? value
@@ -95,7 +159,7 @@ export function normalizeExtracted(value: unknown): Requirement[] {
 
 /** Deterministic, dependency-free fallback for common English and Hinglish shopping phrases. */
 export function parseRequirementsFallback(message: string): Requirement[] {
-  const text = message.toLowerCase().replace(/[’']/g, " ");
+  const text = message.toLowerCase().replace(/[’']/g, " ").replace(/\b(?:don|doesn|didn)\s+t\b/g, " not ");
   const found: Array<{ start: number; end: number; name: string }> = [];
   for (const { alias, name } of aliases) {
     const escaped = alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -112,7 +176,7 @@ export function parseRequirementsFallback(message: string): Requirement[] {
     !found.slice(0, index).some((previous) => entry.start < previous.end && entry.end > previous.start),
   );
 
-  return nonOverlapping.map((entry, index) => {
+  const knownItems = nonOverlapping.map((entry, index) => {
     const previousEnd = index > 0 ? nonOverlapping[index - 1].end : 0;
     const prefix = text.slice(Math.max(previousEnd, entry.start - 100), entry.start);
     const tokens = prefix.match(/[a-z0-9]+/g) ?? [];
@@ -130,4 +194,10 @@ export function parseRequirementsFallback(message: string): Requirement[] {
     const variant = variantTokens.filter((token) => !ignoredVariantWords.has(token) && quantityValue(token) === undefined).join(" ").trim();
     return { name: entry.name, quantity, unit: "piece", variant: variant || null };
   }).filter((item) => item.quantity >= 1 && item.quantity <= 1000);
+  const inferredItems = inferUnknownProducts(text, nonOverlapping);
+  return [...knownItems, ...inferredItems].sort((a, b) => {
+    const aIndex = text.indexOf(a.name.split(" ")[0]);
+    const bIndex = text.indexOf(b.name.split(" ")[0]);
+    return aIndex - bIndex;
+  });
 }

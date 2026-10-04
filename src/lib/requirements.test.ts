@@ -31,6 +31,25 @@ describe("purchase requirement extraction fallback", () => {
     expect(parseRequirementsFallback("0 notebooks and 1001 pens")).toEqual([]);
   });
 
+  it("infers products outside the curated alias list", () => {
+    expect(parseRequirementsFallback("please get 2 laptops and 1 wireless mouse")).toEqual([
+      { name: "laptop", quantity: 2, unit: "piece", variant: null },
+      { name: "mouse", quantity: 1, unit: "piece", variant: "wireless" },
+    ]);
+    expect(parseRequirementsFallback("mujhe do yoga mats aur ek red suitcase chahiye")).toEqual([
+      { name: "yoga mat", quantity: 2, unit: "piece", variant: null },
+      { name: "suitcase", quantity: 1, unit: "piece", variant: "red" },
+    ]);
+    expect(parseRequirementsFallback("2 packs of socks")).toEqual([
+      { name: "sock", quantity: 2, unit: "pack", variant: null },
+    ]);
+  });
+
+  it("does not turn a generic greeting or empty shopping intent into an item", () => {
+    expect(parseRequirementsFallback("Hello, I don't need anything")).toEqual([]);
+    expect(parseRequirementsFallback("Can you help me please?")).toEqual([]);
+  });
+
   it("keeps the provider path operational without an API key", async () => {
     const previous = process.env.GEMINI_API_KEY;
     delete process.env.GEMINI_API_KEY;
