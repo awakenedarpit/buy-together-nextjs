@@ -34,7 +34,7 @@ create index if not exists request_items_message_idx on public.request_items (me
 create index if not exists request_items_aggregate_idx on public.request_items (name, variant, unit);
 
 create or replace function public.set_updated_at()
-returns trigger language plpgsql set search_path = public as $$
+returns trigger language plpgsql set search_path = public, pg_temp as $$
 begin
   new.updated_at = now();
   return new;
@@ -46,19 +46,23 @@ create trigger request_items_set_updated_at
 before update on public.request_items
 for each row execute function public.set_updated_at();
 
--- RLS policies use this SECURITY DEFINER function to avoid recursive profile policies.
-create or replace function public.is_manager()
-returns boolean language sql stable security definer set search_path = public as $$
+-- Keep SECURITY DEFINER helpers outside the schemas exposed through PostgREST.
+create schema if not exists private;
+revoke all on schema private from public;
+grant usage on schema private to authenticated;
+
+create or replace function private.is_manager()
+returns boolean language sql stable security definer set search_path = public, pg_temp as $$
   select exists (
     select 1 from public.profiles
     where id = (select auth.uid()) and role = 'MANAGER'
   );
 $$;
-revoke all on function public.is_manager() from public;
-grant execute on function public.is_manager() to authenticated;
+revoke all on function private.is_manager() from public;
+grant execute on function private.is_manager() to authenticated;
 
-create or replace function public.handle_new_user()
-returns trigger language plpgsql security definer set search_path = public as $$
+create or replace function private.handle_new_user()
+returns trigger language plpgsql security definer set search_path = public, pg_temp as $$
 begin
   insert into public.profiles (id, email, name, role)
   values (
@@ -73,11 +77,12 @@ begin
   return new;
 end;
 $$;
+revoke all on function private.handle_new_user() from public;
 
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
 after insert or update of email on auth.users
-for each row execute function public.handle_new_user();
+for each row execute function private.handle_new_user();
 
 alter table public.profiles enable row level security;
 alter table public.messages enable row level security;
@@ -86,13 +91,13 @@ alter table public.request_items enable row level security;
 drop policy if exists "Members read own profile; managers read all" on public.profiles;
 create policy "Members read own profile; managers read all"
 on public.profiles for select to authenticated
-using (id = (select auth.uid()) or (select public.is_manager()));
+using (id = (select auth.uid()) or (select private.is_manager()));
 
 -- Deliberately no client-side profile UPDATE/INSERT policy: role changes are server-only.
 drop policy if exists "Members read own messages; managers read all" on public.messages;
 create policy "Members read own messages; managers read all"
 on public.messages for select to authenticated
-using (user_id = (select auth.uid()) or (select public.is_manager()));
+using (user_id = (select auth.uid()) or (select private.is_manager()));
 drop policy if exists "Members create own messages" on public.messages;
 create policy "Members create own messages"
 on public.messages for insert to authenticated
@@ -109,7 +114,7 @@ using (user_id = (select auth.uid()));
 drop policy if exists "Members read own items; managers read all" on public.request_items;
 create policy "Members read own items; managers read all"
 on public.request_items for select to authenticated
-using (user_id = (select auth.uid()) or (select public.is_manager()));
+using (user_id = (select auth.uid()) or (select private.is_manager()));
 drop policy if exists "Members create own items" on public.request_items;
 create policy "Members create own items"
 on public.request_items for insert to authenticated

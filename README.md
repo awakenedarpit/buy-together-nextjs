@@ -2,7 +2,9 @@
 
 Turn individual needs into smarter group purchases. Buy Together lets members describe purchases in everyday English or Hinglish, saves those requests in Supabase, and gives managers a live combined view of everything the group needs.
 
-> **Live demo for this rebuild:** Not deployed yet. The existing legacy deployment is separate; a public URL for this Next.js/Supabase app can be added after its Supabase project and Vercel deployment are configured. No placeholder URL is presented as live.
+> **Live demo:** [https://buy-together-demo.onrender.com](https://buy-together-demo.onrender.com)
+> **Source:** [awakenedarpit/buy-together-nextjs](https://github.com/awakenedarpit/buy-together-nextjs)
+> The demo uses Render's free web service and may take a little longer to respond after a period of inactivity.
 
 ## Features
 
@@ -12,7 +14,7 @@ Turn individual needs into smarter group purchases. Buy Together lets members de
 - Add requirements from natural language; edit or delete individual items.
 - Manager view for all member requirements, search/member filters, and dynamic totals grouped by item + variant + unit.
 - Protected manager setup using a server-only setup secret and Supabase service-role key; a SQL promotion example is included as a fallback.
-- PostgreSQL foreign keys, indexes, quantity checks, and row-level security policies.
+- PostgreSQL foreign keys, indexes, quantity checks, row-level security policies, and non-exposed security-definer helpers.
 - Responsive Next.js App Router interface styled with Tailwind CSS 4 and custom design tokens.
 
 ## Technology
@@ -21,15 +23,15 @@ Turn individual needs into smarter group purchases. Buy Together lets members de
 - Supabase PostgreSQL, Auth, `@supabase/ssr`
 - Tailwind CSS 4
 - Gemini API (optional); always-available deterministic English/Hinglish fallback
-- Vercel deployment target
+- Render deployment with auto-deploy from the repository's `main` branch
 
 ## Local setup
 
 Requirements: Node.js 20.9+ (Node 22 recommended) and npm.
 
 ```bash
-git clone <your-repository-url>
-cd buy-together
+git clone https://github.com/awakenedarpit/buy-together-nextjs.git
+cd buy-together-nextjs
 npm install
 cp .env.example .env.local
 ```
@@ -44,10 +46,13 @@ Open <http://localhost:3000>. `npm run lint`, `npm run typecheck`, `npm test`, a
 
 ## Supabase setup
 
+The live demo already has its own Supabase project, schema, and Auth URL configuration. For a separate project:
+
 1. Create a Supabase project.
-2. In **SQL Editor**, run [`supabase/schema.sql`](supabase/schema.sql). It creates `profiles`, `messages`, and `request_items`; a profile trigger; indexes; a manager-check function; and the RLS policies.
-3. In **Authentication → Providers → Email**, enable email/password. For a quick hackathon demo, either disable email confirmation or configure an email provider so registrants can confirm before signing in.
-4. Copy the project URL and anon/public key from **Project Settings → API** into `.env.local` or your deployment environment:
+2. In **SQL Editor**, run [`supabase/schema.sql`](supabase/schema.sql). It creates `profiles`, `messages`, and `request_items`; a profile trigger; indexes; a private manager-check function; and RLS policies.
+3. If upgrading a project that already ran the earlier schema, apply [`supabase/migrations/202610040001_private_security_functions.sql`](supabase/migrations/202610040001_private_security_functions.sql) instead of re-running the full schema.
+4. In **Authentication → Providers → Email**, enable email/password. Complete the email confirmation flow if it is enabled for the project.
+5. Copy the project URL and anon/public key from **Project Settings → API** into `.env.local` or your deployment environment:
 
    ```dotenv
    NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
@@ -55,22 +60,24 @@ Open <http://localhost:3000>. `npm run lint`, `npm run typecheck`, `npm test`, a
    ```
 
    The anon key is intended for client authentication; database access remains constrained by RLS.
-5. In Supabase **Authentication → URL Configuration**, add the local URL (`http://localhost:3000`) and the eventual production URL to the allowed redirect URLs.
+6. In **Authentication → URL Configuration**, set the production Site URL and add the production origin plus `http://localhost:3000/**` to the allowed redirect URLs.
 
 ### Manager account
 
-To use the setup screen at `/manager/setup`, add both of these as **server-only** environment variables and register/sign in to the account to promote:
+For the live demo, register and confirm the account you want to use as manager, then run this one-time statement in the Buy Together Supabase SQL Editor, replacing the example address with that account's email:
+
+```sql
+update public.profiles set role = 'MANAGER' where email = 'manager@example.com';
+```
+
+The optional `/manager/setup` form requires both of these **server-only** deployment variables:
 
 ```dotenv
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 MANAGER_SETUP_SECRET=replace-with-a-long-random-secret
 ```
 
-The manager route verifies the secret server-side and promotes only the signed-in user's profile. Never prefix the service-role key with `NEXT_PUBLIC_` or expose it in browser code. Alternatively, register the chosen account, then run this one-time statement in Supabase SQL Editor:
-
-```sql
-update public.profiles set role = 'MANAGER' where email = 'manager@example.com';
-```
+The route verifies the secret server-side and promotes only the signed-in user's profile. Never prefix the service-role key with `NEXT_PUBLIC_` or expose it in browser code.
 
 ## Environment variables
 
@@ -85,12 +92,8 @@ update public.profiles set role = 'MANAGER' where email = 'manager@example.com';
 
 The repository ignores environment files; `.env.example` is the only environment template committed.
 
-## Deployment to Vercel
+## Deployment
 
-1. Push this repository to GitHub.
-2. Import the repository in Vercel and select the default Next.js build settings (`npm run build`).
-3. Add the Supabase settings above as project environment variables. Add `SUPABASE_SERVICE_ROLE_KEY` and `MANAGER_SETUP_SECRET` only if using the manager setup route; add `GEMINI_API_KEY` only if enabling Gemini.
-4. Deploy. Add the Vercel production URL to Supabase Auth's allowed redirect URLs.
-5. Register a member, add a request, and sign in with a second account. Promote a manager as documented above, then verify the manager aggregation.
+The `main` branch of the GitHub repository is connected to the Render web service. A push to `main` automatically rebuilds and deploys the app. The live service has the required Supabase public URL and anon key configured; no service-role key is exposed to the public app.
 
-**Deployment status:** The Next.js source builds and passes local checks. No Vercel URL is available until a Supabase project and Vercel deployment are configured.
+**Live deployment:** [https://buy-together-demo.onrender.com](https://buy-together-demo.onrender.com)
